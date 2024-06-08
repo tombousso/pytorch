@@ -706,12 +706,8 @@ class NNModuleVariable(VariableTracker):
                 key = args[0].as_python_constant()
 
             submod = module[key]
-            return tx.output.register_attr_or_module(
-                submod,
-                self.module_key,
-                key,
-                source=NNModuleSource(GetItemSource(self.source, key)),
-            )
+            from .builder import VariableBuilder
+            return VariableBuilder(tx, NNModuleSource(GetItemSource(self.source, key)))(submod)
         elif (
             name == "_get_abs_string_index"
             or (
