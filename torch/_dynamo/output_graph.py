@@ -48,7 +48,7 @@ from .exc import (
     unimplemented,
     unimplemented_with_warning,
 )
-from .guards import GuardBuilder, install_guard
+from .guards import GuardBuilder, GuardSource, install_guard
 from .mutation_guard import is_dynamic_nn_module
 from .side_effects import AttributeMutationExisting, SideEffects
 from .source import (
@@ -752,7 +752,19 @@ class OutputGraph:
         **options,
     ):
         if is_dynamic_nn_module(target, self.root_tx.export):
-            return variables.UnspecializedNNModuleVariable(target, **options)
+            # taken from https://github.com/tombousso/pytorch/blob/main/torch/_dynamo/variables/builder.py#L1128-L1135
+            # created dynamically, don't specialize on it
+            if (
+                "source" in options
+                and not isinstance(options["source"], ConstantSource)
+                and options["source"].guard_source != GuardSource.CONSTANT
+            ):
+                install_guard(options["source"].make_guard(GuardBuilder.TYPE_MATCH))
+            result = variables.UnspecializedNNModuleVariable(target, **options)
+            if not SideEffects.cls_supports_mutation_side_effects(type(target)):
+                # don't allow STORE_ATTR mutation with custom __setattr__
+                return result
+            return self.root_tx.output.side_effects.track_object_existing(target, result)
 
         options = dict(options)
         assert "source" in options
