@@ -213,6 +213,9 @@ class SideEffects:
     ):
         """Start tracking a new variable for mutation"""
         assert variable.source is not None
+        if id(item) in self.id_to_variable:
+            variable.mutable_local = self.id_to_variable[id(item)].mutable_local
+            return variable
         variable.mutable_local = mutable_cls(variable.source)
         self.id_to_variable[id(item)] = variable
         self.keepalive.append(item)
